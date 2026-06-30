@@ -236,15 +236,21 @@
       <div><label class="form-label">Email *</label><input class="form-input" id="f-email" type="email" placeholder="jane@example.com" /></div>
     </div>
     <div class="form-row"><label class="form-label">Issue title *</label><input class="form-input" id="f-title" type="text" placeholder="Short description of the problem" /></div>
+    <div class="form-row"><label class="form-label">Product name</label><input class="form-input" id="f-product" type="text" placeholder="e.g. GROHE Essence Faucet, DXV Fitzgerald Sink…" /></div>
     <div class="form-row-2">
       <div><label class="form-label">Priority</label>
         <select class="form-select" id="f-priority"><option>Critical</option><option>High</option><option selected>Medium</option><option>Low</option></select>
       </div>
-      <div><label class="form-label">Category</label>
-        <select class="form-select" id="f-category"><option>Bug</option><option>Performance</option><option>UI/UX</option><option>Feature request</option><option>Other</option></select>
+      <div><label class="form-label">Brand</label>
+        <select class="form-select" id="f-category"><option>American Standard</option><option>GROHE</option><option>DXV</option><option>INAX</option></select>
       </div>
     </div>
-    <div class="form-row"><label class="form-label">Description</label><textarea class="form-textarea" id="f-desc" placeholder="Steps to reproduce, expected vs. actual behavior, device/browser info…"></textarea></div>
+    <div class="form-row"><label class="form-label">Description *</label><textarea class="form-textarea" id="f-desc" placeholder="Steps to reproduce, expected vs. actual behavior, relevant details…"></textarea></div>
+    <div class="form-row">
+      <label class="form-label">Attachments <span style="font-weight:400;color:var(--muted)">(screenshots, photos, or reference files)</span></label>
+      <input class="form-input" id="f-attachment" type="file" accept="image/*,.pdf,.doc,.docx" style="padding:6px;cursor:pointer" />
+      <div id="f-attachment-status" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
+    </div>
     <div class="modal-footer">
       <button class="btn" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" id="submit-btn" onclick="submitIssue()">Submit issue</button>
@@ -268,6 +274,23 @@
   let selected = null;
   let adminCode = null;
   const avColors = ['av-a','av-b','av-c','av-d'];
+
+  // ── Access gate ────────────────────────────────────────────────────────
+  const ACCESS_KEY = 'Problem-solver';
+  (function checkAccess() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('key') !== ACCESS_KEY) {
+      document.body.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f9fafb">
+          <div style="text-align:center;color:#6b7280">
+            <div style="font-size:40px;margin-bottom:16px">🔒</div>
+            <div style="font-size:16px;font-weight:600;color:#111827;margin-bottom:8px">Access denied</div>
+            <div style="font-size:13px">You don't have the correct link to access this page.</div>
+          </div>
+        </div>`;
+      throw new Error('Access denied');
+    }
+  })();
 
   // ── Init ───────────────────────────────────────────────────────────────
   window.onload = loadIssues;
@@ -343,7 +366,9 @@
         </div>
         <div class="issue-badges" style="margin:6px 0">${statusBadge(issue.status)} ${priorityBadge(issue.priority)} <span class="badge badge-low">${esc(issue.category||'Bug')}</span></div>
         <div class="detail-meta">Reported by <strong>${esc(issue.reporter_name)}</strong> (${esc(issue.reporter_email)}) · ${fmtDate(issue.created_at)}</div>
+        ${issue.product_name ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">Product: <strong style="color:var(--text)">${esc(issue.product_name)}</strong></div>` : ''}
         ${issue.description ? `<div class="detail-desc">${esc(issue.description)}</div>` : ''}
+        ${issue.attachment_url ? `<div style="margin:8px 0 14px"><a href="${esc(issue.attachment_url)}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;color:var(--lixil);font-size:12px;text-decoration:none;border:1px solid var(--lixil-mid);background:var(--lixil-light);padding:5px 10px;border-radius:6px">📎 View attachment</a></div>` : ''}
         <div class="comments-title" id="comments-title">Comments</div>
         <div id="comments-list"><div class="placeholder"><span class="spinner"></span></div></div>
         <div class="add-comment">
@@ -411,21 +436,49 @@
   function closeModal() { document.getElementById('modal').classList.remove('open'); }
 
   async function submitIssue() {
-    const title = document.getElementById('f-title').value.trim();
-    const name  = document.getElementById('f-name').value.trim();
-    const email = document.getElementById('f-email').value.trim();
-    const desc  = document.getElementById('f-desc').value.trim();
-    const prio  = document.getElementById('f-priority').value;
-    const cat   = document.getElementById('f-category').value;
+    const title   = document.getElementById('f-title').value.trim();
+    const name    = document.getElementById('f-name').value.trim();
+    const email   = document.getElementById('f-email').value.trim();
+    const desc    = document.getElementById('f-desc').value.trim();
+    const prio    = document.getElementById('f-priority').value;
+    const cat     = document.getElementById('f-category').value;
+    const product = document.getElementById('f-product').value.trim();
+    const fileInput = document.getElementById('f-attachment');
+
     if (!title || !name || !email) { showToast('Name, email and title are required', true); return; }
+    if (!desc) { showToast('Description is required', true); return; }
 
     const btn = document.getElementById('submit-btn');
     btn.disabled = true; btn.textContent = 'Submitting…';
-    const { error } = await db.from('issues').insert({ title, description: desc, priority: prio, category: cat, reporter_name: name, reporter_email: email });
+
+    // Upload attachment if provided
+    let attachmentUrl = null;
+    if (fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      const safeName = `${Date.now()}-${file.name.replace(/[^a-z0-9._-]/gi, '_')}`;
+      document.getElementById('f-attachment-status').textContent = 'Uploading file…';
+      const { error: upErr } = await db.storage.from('attachments').upload(safeName, file, { upsert: false });
+      if (upErr) {
+        showToast('File upload failed — check storage bucket is set up', true);
+        document.getElementById('f-attachment-status').textContent = 'Upload failed';
+        btn.disabled = false; btn.textContent = 'Submit issue';
+        return;
+      }
+      const { data: urlData } = db.storage.from('attachments').getPublicUrl(safeName);
+      attachmentUrl = urlData.publicUrl;
+      document.getElementById('f-attachment-status').textContent = '';
+    }
+
+    const { error } = await db.from('issues').insert({
+      title, description: desc, priority: prio, category: cat,
+      reporter_name: name, reporter_email: email,
+      product_name: product, attachment_url: attachmentUrl
+    });
     btn.disabled = false; btn.textContent = 'Submit issue';
     if (error) { showToast('Failed to submit issue', true); return; }
     closeModal();
-    ['f-title','f-name','f-email','f-desc'].forEach(id => document.getElementById(id).value = '');
+    ['f-title','f-name','f-email','f-desc','f-product'].forEach(id => document.getElementById(id).value = '');
+    fileInput.value = '';
     showToast('Issue submitted ✓');
     loadIssues();
   }
