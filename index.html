@@ -178,6 +178,7 @@
   </div>
   <div class="admin-active" id="admin-active-wrap">
     <span class="badge badge-admin">✓ Admin mode on</span>
+    <button class="btn btn-sm" onclick="exportCSV()" style="background:var(--green-bg);color:var(--green-text);border-color:#c3e09a">⬇ Export CSV</button>
     <button class="btn btn-sm btn-ghost" onclick="signOut()">Sign out</button>
   </div>
 </div>
@@ -546,6 +547,33 @@
     if (data && data.error) { showToast(data.error, true); return; }
     document.getElementById('cmt-' + commentId)?.remove();
     showToast('Comment removed');
+  }
+
+  // ── Export ────────────────────────────────────────────────────────────
+  async function exportCSV() {
+    showToast('Preparing export…');
+    const { data, error } = await db.from('issues').select('*').eq('deleted', false).order('created_at', { ascending: false });
+    if (error || !data) { showToast('Export failed', true); return; }
+
+    const cols = ['title','product_name','category','priority','status','reporter_name','reporter_email','description','attachment_url','created_at'];
+    const headers = ['Title','Product Name','Brand','Priority','Status','Reporter Name','Reporter Email','Description','Attachment URL','Date Reported'];
+
+    const csvRows = [
+      headers.join(','),
+      ...data.map(row => cols.map(col => {
+        const val = row[col] == null ? '' : String(row[col]);
+        return '"' + val.replace(/"/g, '""') + '"';
+      }).join(','))
+    ];
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `LIXIL-issues-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Export downloaded ✓');
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────
