@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LIXIL Product Issues</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --lixil: #e95d08;
+      --lixil-dark: #c44e06;
+      --lixil-light: #fdf0e8;
+      --lixil-mid: #fad5bb;
+      --red-bg: #FCEBEB; --red-text: #A32D2D;
+      --green-bg: #EAF3DE; --green-text: #3B6D11;
+      --blue-bg: #E6F1FB; --blue-text: #185FA5;
+      --purple-bg: #EEEDFE; --purple-text: #3C3489;
+      --border: #e5e7eb;
+      --surface: #f9fafb;
+      --white: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: var(--text); background: var(--surface); min-height: 100vh; }
+
+    /* Header */
+    .header { background: var(--white); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-icon { width: 34px; height: 34px; background: var(--lixil); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 17px; font-weight: 700; flex-shrink: 0; }
+    .logo-name { font-size: 15px; font-weight: 600; }
+    .logo-sub { font-size: 11px; color: var(--muted); }
+
+    /* Buttons */
+    .btn { padding: 7px 14px; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--white); color: var(--text); font-family: inherit; transition: background 0.1s; }
+    .btn:hover { background: var(--surface); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--lixil); color: #fff; border-color: var(--lixil); }
+    .btn-primary:hover { background: var(--lixil-dark); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-danger { background: var(--red-bg); color: var(--red-text); border-color: #f7c1c1; }
+    .btn-danger:hover { background: #f7c1c1; }
+    .btn-ghost { border: none; background: none; }
+    .btn-ghost:hover { background: var(--surface); }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    .badge-open { background: var(--red-bg); color: var(--red-text); }
+    .badge-progress { background: var(--lixil-light); color: var(--lixil-dark); }
+    .badge-resolved { background: var(--green-bg); color: var(--green-text); }
+    .badge-critical { background: var(--red-bg); color: var(--red-text); }
+    .badge-high { background: var(--lixil-light); color: var(--lixil-dark); }
+    .badge-medium { background: var(--blue-bg); color: var(--blue-text); }
+    .badge-low { background: #f3f4f6; color: var(--muted); }
+    .badge-admin { background: var(--purple-bg); color: var(--purple-text); }
+
+    /* Admin bar */
+    .admin-bar { background: var(--purple-bg); border-bottom: 1px solid #CECBF6; padding: 7px 20px; display: flex; align-items: center; justify-content: space-between; }
+    .admin-bar-label { font-size: 12px; color: var(--purple-text); font-weight: 500; }
+    .admin-login { display: flex; align-items: center; gap: 6px; }
+    .admin-login input { padding: 5px 9px; border: 1px solid #CECBF6; border-radius: 6px; font-size: 12px; font-family: inherit; background: var(--white); width: 160px; }
+    .admin-login input:focus { outline: none; border-color: var(--purple-text); }
+    .admin-active { display: none; align-items: center; gap: 8px; }
+
+    /* Stats */
+    .stats-bar { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; padding: 14px 20px; background: var(--white); border-bottom: 1px solid var(--border); }
+    .stat { background: var(--surface); border-radius: 8px; padding: 10px 14px; }
+    .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+    .stat-value { font-size: 22px; font-weight: 600; color: var(--text); }
+
+    /* Filter bar */
+    .filter-bar { display: flex; align-items: center; gap: 6px; padding: 10px 20px; background: var(--white); border-bottom: 1px solid var(--border); }
+    .tab { padding: 5px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; background: none; color: var(--muted); font-family: inherit; }
+    .tab:hover { background: var(--surface); }
+    .tab.active { background: var(--lixil-light); color: var(--lixil-dark); border-color: var(--lixil-mid); font-weight: 500; }
+    .search-wrap { margin-left: auto; position: relative; }
+    .search-wrap input { padding: 6px 10px 6px 28px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; width: 200px; font-family: inherit; background: var(--surface); }
+    .search-wrap input:focus { outline: none; border-color: var(--lixil); }
+    .search-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 12px; pointer-events: none; }
+
+    /* Layout */
+    .main { display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100vh - 200px); }
+    .issue-list { border-right: 1px solid var(--border); overflow-y: auto; background: var(--white); }
+    .detail-pane { overflow-y: auto; background: var(--white); position: sticky; top: 145px; max-height: calc(100vh - 145px); }
+
+    /* Issue rows */
+    .issue-row { padding: 14px 18px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.1s; position: relative; }
+    .issue-row:hover { background: var(--surface); }
+    .issue-row.active { background: var(--lixil-light); border-left: 3px solid var(--lixil); padding-left: 15px; }
+    .issue-title { font-size: 13px; font-weight: 500; margin-bottom: 5px; padding-right: 28px; line-height: 1.4; }
+    .issue-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+    .issue-meta { font-size: 11px; color: var(--muted); }
+    .remove-issue-btn { position: absolute; right: 10px; top: 12px; display: none; background: none; border: none; cursor: pointer; color: var(--red-text); font-size: 15px; padding: 3px 5px; border-radius: 4px; }
+    .remove-issue-btn:hover { background: var(--red-bg); }
+    .admin-mode .remove-issue-btn { display: block; }
+
+    /* Empty / loading */
+    .placeholder { padding: 48px 24px; text-align: center; color: var(--muted); }
+    .placeholder .icon { font-size: 30px; margin-bottom: 10px; }
+
+    /* Detail pane */
+    .detail-inner { padding: 20px; }
+    .detail-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .detail-title { font-size: 15px; font-weight: 600; line-height: 1.4; }
+    .detail-meta { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .detail-desc { font-size: 13px; color: #374151; line-height: 1.6; background: var(--surface); border-radius: 8px; padding: 12px 14px; margin: 14px 0; }
+    .status-select { padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: inherit; cursor: pointer; flex-shrink: 0; }
+    .status-select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Comments */
+    .comments-title { font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .comment { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .comment:last-child { border-bottom: none; }
+    .avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+    .av-a { background: var(--lixil-light); color: var(--lixil-dark); }
+    .av-b { background: var(--blue-bg); color: var(--blue-text); }
+    .av-c { background: var(--green-bg); color: var(--green-text); }
+    .av-d { background: var(--purple-bg); color: var(--purple-text); }
+    .comment-body { flex: 1; min-width: 0; }
+    .comment-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+    .comment-author { font-size: 12px; font-weight: 500; }
+    .comment-date { font-size: 11px; color: var(--muted); margin-left: 6px; }
+    .comment-text { font-size: 13px; color: #374151; line-height: 1.5; }
+    .remove-comment-btn { display: none; }
+    .admin-mode .remove-comment-btn { display: inline-block; }
+
+    /* Add comment */
+    .add-comment { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+    .add-comment textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; font-family: inherit; resize: none; margin-bottom: 8px; }
+    .add-comment textarea:focus { outline: none; border-color: var(--lixil); }
+    .comment-fields { display: flex; gap: 8px; }
+    .comment-fields input { flex: 1; padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 12px; font-family: inherit; }
+    .comment-fields input:focus { outline: none; border-color: var(--lixil); }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--white); border-radius: 12px; padding: 24px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .modal-title { font-size: 16px; font-weight: 600; }
+    .form-row { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
+    .form-input, .form-select, .form-textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; font-family: inherit; background: var(--white); color: var(--text); }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--lixil); box-shadow: 0 0 0 3px rgba(233,93,8,0.1); }
+    .form-textarea { resize: vertical; min-height: 90px; }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #111827; color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 13px; z-index: 999; opacity: 0; transform: translateY(8px); transition: opacity 0.2s, transform 0.2s; pointer-events: none; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { background: var(--red-text); }
+
+    /* Spinner */
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(233,93,8,0.2); border-top-color: var(--lixil); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Responsive */
+    @media (max-width: 680px) {
+      .main { grid-template-columns: 1fr; }
+      .stats-bar { grid-template-columns: repeat(2,1fr); }
+      .detail-pane { position: static; max-height: none; }
+      .back-btn { display: inline-flex !important; }
+      .issue-list.hide { display: none; }
+      .detail-pane.hide { display: none; }
+    }
+    .back-btn { display: none; align-items: center; gap: 4px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+<!-- Admin bar -->
+<div class="admin-bar" id="admin-bar">
+  <span class="admin-bar-label" id="admin-label">🔒 Admin login</span>
+  <div class="admin-login" id="admin-login-wrap">
+    <input type="password" id="admin-input" placeholder="Enter admin code" onkeydown="if(event.key==='Enter')signIn()" />
+    <button class="btn btn-sm" onclick="signIn()">Sign in</button>
+  </div>
+  <div class="admin-active" id="admin-active-wrap">
+    <span class="badge badge-admin">✓ Admin mode on</span>
+    <button class="btn btn-sm btn-ghost" onclick="signOut()">Sign out</button>
+  </div>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">L</div>
+    <div>
+      <div class="logo-name">LIXIL product issues</div>
+      <div class="logo-sub">Report and track product issues</div>
+    </div>
+  </div>
+  <button class="btn btn-primary" onclick="openModal()">+ Report issue</button>
+</div>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stat"><div class="stat-label">Total</div><div class="stat-value" id="s-total">—</div></div>
+  <div class="stat"><div class="stat-label" style="color:var(--red-text)">Open</div><div class="stat-value" id="s-open" style="color:var(--red-text)">—</div></div>
+  <div class="stat"><div class="stat-label" style="color:var(--lixil-dark)">In progress</div><div class="stat-value" id="s-prog" style="color:var(--lixil)">—</div></div>
+  <div class="stat"><div class="stat-label" style="color:var(--green-text)">Resolved</div><div class="stat-value" id="s-res" style="color:var(--green-text)">—</div></div>
+</div>
+
+<!-- Filter bar -->
+<div class="filter-bar">
+  <button class="tab active" onclick="setFilter('all',this)">All</button>
+  <button class="tab" onclick="setFilter('Open',this)">Open</button>
+  <button class="tab" onclick="setFilter('In progress',this)">In progress</button>
+  <button class="tab" onclick="setFilter('Resolved',this)">Resolved</button>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search" placeholder="Search issues…" oninput="renderList()" />
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main" id="main">
+  <div class="issue-list" id="issue-list">
+    <div class="placeholder"><span class="spinner"></span> Loading…</div>
+  </div>
+  <div class="detail-pane" id="detail-pane">
+    <div class="placeholder" style="margin-top:60px"><div class="icon">👆</div><p>Select an issue to view details</p></div>
+  </div>
+</div>
+
+<!-- New issue modal -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Report an issue</span>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">✕</button>
+    </div>
+    <div class="form-row-2">
+      <div><label class="form-label">Your name *</label><input class="form-input" id="f-name" type="text" placeholder="Jane Smith" /></div>
+      <div><label class="form-label">Email *</label><input class="form-input" id="f-email" type="email" placeholder="jane@example.com" /></div>
+    </div>
+    <div class="form-row"><label class="form-label">Issue title *</label><input class="form-input" id="f-title" type="text" placeholder="Short description of the problem" /></div>
+    <div class="form-row-2">
+      <div><label class="form-label">Priority</label>
+        <select class="form-select" id="f-priority"><option>Critical</option><option>High</option><option selected>Medium</option><option>Low</option></select>
+      </div>
+      <div><label class="form-label">Category</label>
+        <select class="form-select" id="f-category"><option>Bug</option><option>Performance</option><option>UI/UX</option><option>Feature request</option><option>Other</option></select>
+      </div>
+    </div>
+    <div class="form-row"><label class="form-label">Description</label><textarea class="form-textarea" id="f-desc" placeholder="Steps to reproduce, expected vs. actual behavior, device/browser info…"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="submit-btn" onclick="submitIssue()">Submit issue</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Supabase client ────────────────────────────────────────────────────
+  const { createClient } = supabase;
+  const db = createClient(
+    'https://bplpbuetdhfctynsncxo.supabase.co',
+    'sb_publishable_TnoyhAGYkvvUA0Vr_cjJUg_VrLXrMa0'
+  );
+
+  // ── State ──────────────────────────────────────────────────────────────
+  let issues = [];
+  let filter = 'all';
+  let selected = null;
+  let adminCode = null;
+  const avColors = ['av-a','av-b','av-c','av-d'];
+
+  // ── Init ───────────────────────────────────────────────────────────────
+  window.onload = loadIssues;
+
+  async function loadIssues() {
+    document.getElementById('issue-list').innerHTML = '<div class="placeholder"><span class="spinner"></span> Loading…</div>';
+    const { data, error } = await db.from('issues').select('*').eq('deleted', false).order('created_at', { ascending: false });
+    if (error) { showToast('Failed to load issues', true); return; }
+    issues = data || [];
+    updateStats();
+    renderList();
+    if (selected) selectIssue(selected);
+  }
+
+  // ── Stats ──────────────────────────────────────────────────────────────
+  function updateStats() {
+    document.getElementById('s-total').textContent = issues.length;
+    document.getElementById('s-open').textContent = issues.filter(i => i.status === 'Open').length;
+    document.getElementById('s-prog').textContent = issues.filter(i => i.status === 'In progress').length;
+    document.getElementById('s-res').textContent = issues.filter(i => i.status === 'Resolved').length;
+  }
+
+  // ── List ───────────────────────────────────────────────────────────────
+  function setFilter(f, el) {
+    filter = f;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    renderList();
+  }
+
+  function renderList() {
+    const q = (document.getElementById('search').value || '').toLowerCase();
+    const filtered = issues.filter(i => {
+      const matchFilter = filter === 'all' || i.status === filter;
+      const matchSearch = !q || i.title.toLowerCase().includes(q) || (i.description||'').toLowerCase().includes(q);
+      return matchFilter && matchSearch;
+    });
+
+    const el = document.getElementById('issue-list');
+    if (!filtered.length) {
+      el.innerHTML = '<div class="placeholder"><div class="icon">📋</div><p>No issues found</p></div>';
+      return;
+    }
+    el.innerHTML = filtered.map(i => `
+      <div class="issue-row ${i.id === selected ? 'active' : ''}" onclick="selectIssue('${i.id}')">
+        <button class="remove-issue-btn" onclick="event.stopPropagation();deleteIssue('${i.id}')" title="Remove">🗑</button>
+        <div class="issue-title">${esc(i.title)}</div>
+        <div class="issue-badges">${statusBadge(i.status)} ${priorityBadge(i.priority)}</div>
+        <div class="issue-meta">${esc(i.reporter_name)} · ${fmtDate(i.created_at)}</div>
+      </div>`).join('');
+  }
+
+  // ── Detail ─────────────────────────────────────────────────────────────
+  async function selectIssue(id) {
+    selected = id;
+    renderList();
+
+    // Mobile
+    document.getElementById('issue-list').classList.add('hide');
+    document.getElementById('detail-pane').classList.remove('hide');
+
+    const issue = issues.find(i => i.id === id);
+    if (!issue) return;
+
+    document.getElementById('detail-pane').innerHTML = `
+      <div class="detail-inner">
+        <button class="btn btn-ghost btn-sm back-btn" onclick="showList()">← Back</button>
+        <div class="detail-top">
+          <div class="detail-title">${esc(issue.title)}</div>
+          <select class="status-select" onchange="updateStatus('${id}', this.value)" ${adminCode ? '' : 'disabled'}>
+            ${['Open','In progress','Resolved'].map(s => `<option ${issue.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="issue-badges" style="margin:6px 0">${statusBadge(issue.status)} ${priorityBadge(issue.priority)} <span class="badge badge-low">${esc(issue.category||'Bug')}</span></div>
+        <div class="detail-meta">Reported by <strong>${esc(issue.reporter_name)}</strong> (${esc(issue.reporter_email)}) · ${fmtDate(issue.created_at)}</div>
+        ${issue.description ? `<div class="detail-desc">${esc(issue.description)}</div>` : ''}
+        <div class="comments-title" id="comments-title">Comments</div>
+        <div id="comments-list"><div class="placeholder"><span class="spinner"></span></div></div>
+        <div class="add-comment">
+          <textarea id="c-text" rows="2" placeholder="Add a comment…"></textarea>
+          <div class="comment-fields">
+            <input type="text" id="c-name" placeholder="Your name" />
+            <input type="email" id="c-email" placeholder="Email" />
+            <button class="btn btn-primary btn-sm" onclick="submitComment('${id}')">Post</button>
+          </div>
+        </div>
+      </div>`;
+
+    loadComments(id);
+  }
+
+  function showList() {
+    document.getElementById('issue-list').classList.remove('hide');
+    document.getElementById('detail-pane').classList.add('hide');
+  }
+
+  // ── Comments ───────────────────────────────────────────────────────────
+  async function loadComments(issueId) {
+    const { data, error } = await db.from('comments').select('*').eq('issue_id', issueId).eq('deleted', false).order('created_at', { ascending: true });
+    if (error) { document.getElementById('comments-list').innerHTML = '<p style="color:var(--muted);font-size:12px">Failed to load comments.</p>'; return; }
+    renderComments(data || [], issueId);
+  }
+
+  function renderComments(comments, issueId) {
+    const title = document.getElementById('comments-title');
+    if (title) title.textContent = `Comments (${comments.length})`;
+    const el = document.getElementById('comments-list');
+    if (!el) return;
+    if (!comments.length) { el.innerHTML = '<p style="color:var(--muted);font-size:12px;padding:8px 0">No comments yet.</p>'; return; }
+    el.innerHTML = comments.map((c, idx) => `
+      <div class="comment" id="cmt-${c.id}">
+        <div class="avatar ${avColors[idx%4]}">${initials(c.author_name)}</div>
+        <div class="comment-body">
+          <div class="comment-header">
+            <div><span class="comment-author">${esc(c.author_name)}</span><span class="comment-date">${fmtDate(c.created_at)}</span></div>
+            <button class="btn btn-sm btn-danger remove-comment-btn" onclick="deleteComment('${c.id}','${issueId}')">Remove</button>
+          </div>
+          <div class="comment-text">${esc(c.content)}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  async function submitComment(issueId) {
+    const text  = document.getElementById('c-text').value.trim();
+    const name  = document.getElementById('c-name').value.trim();
+    const email = document.getElementById('c-email').value.trim();
+    if (!text || !name || !email) { showToast('Please fill in all fields', true); return; }
+
+    const btn = event.target;
+    btn.disabled = true; btn.textContent = '…';
+    const { error } = await db.from('comments').insert({ issue_id: issueId, author_name: name, author_email: email, content: text });
+    btn.disabled = false; btn.textContent = 'Post';
+    if (error) { showToast('Failed to post comment', true); return; }
+    document.getElementById('c-text').value = '';
+    showToast('Comment posted!');
+    loadComments(issueId);
+  }
+
+  // ── New issue ──────────────────────────────────────────────────────────
+  function openModal() { document.getElementById('modal').classList.add('open'); document.getElementById('f-name').focus(); }
+  function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+  async function submitIssue() {
+    const title = document.getElementById('f-title').value.trim();
+    const name  = document.getElementById('f-name').value.trim();
+    const email = document.getElementById('f-email').value.trim();
+    const desc  = document.getElementById('f-desc').value.trim();
+    const prio  = document.getElementById('f-priority').value;
+    const cat   = document.getElementById('f-category').value;
+    if (!title || !name || !email) { showToast('Name, email and title are required', true); return; }
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true; btn.textContent = 'Submitting…';
+    const { error } = await db.from('issues').insert({ title, description: desc, priority: prio, category: cat, reporter_name: name, reporter_email: email });
+    btn.disabled = false; btn.textContent = 'Submit issue';
+    if (error) { showToast('Failed to submit issue', true); return; }
+    closeModal();
+    ['f-title','f-name','f-email','f-desc'].forEach(id => document.getElementById(id).value = '');
+    showToast('Issue submitted ✓');
+    loadIssues();
+  }
+
+  // ── Admin ──────────────────────────────────────────────────────────────
+  async function signIn() {
+    const code = document.getElementById('admin-input').value;
+    if (!code) return;
+    const { data, error } = await db.rpc('admin_update_status', { p_id: '00000000-0000-0000-0000-000000000000', p_status: 'Open', p_code: code });
+    // If code is wrong, it returns an error object; if correct, it just says "not found" which is fine
+    const valid = !error && data && !data.error;
+    // Alternative: call a check function
+    if (!valid) {
+      // Try a simple RPC check by attempting with a dummy ID — instead use the check below
+      const res = await db.rpc('admin_delete_issue', { p_id: '00000000-0000-0000-0000-000000000000', p_code: code });
+      if (res.data && res.data.error === 'Unauthorized') { showToast('Incorrect admin code', true); return; }
+    }
+    adminCode = code;
+    document.getElementById('admin-login-wrap').style.display = 'none';
+    document.getElementById('admin-active-wrap').style.display = 'flex';
+    document.getElementById('admin-label').textContent = '🛡 Admin mode active — remove issues and comments below';
+    document.getElementById('main').classList.add('admin-mode');
+    if (selected) selectIssue(selected);
+    showToast('Admin mode enabled');
+  }
+
+  function signOut() {
+    adminCode = null;
+    document.getElementById('admin-input').value = '';
+    document.getElementById('admin-login-wrap').style.display = 'flex';
+    document.getElementById('admin-active-wrap').style.display = 'none';
+    document.getElementById('admin-label').textContent = '🔒 Admin login';
+    document.getElementById('main').classList.remove('admin-mode');
+    if (selected) selectIssue(selected);
+  }
+
+  async function updateStatus(id, status) {
+    if (!adminCode) return;
+    const { data } = await db.rpc('admin_update_status', { p_id: id, p_status: status, p_code: adminCode });
+    if (data && data.error) { showToast(data.error, true); return; }
+    const i = issues.find(x => x.id === id);
+    if (i) i.status = status;
+    updateStats();
+    renderList();
+    showToast('Status updated to ' + status);
+  }
+
+  async function deleteIssue(id) {
+    if (!adminCode || !confirm('Remove this issue? This cannot be undone.')) return;
+    const { data } = await db.rpc('admin_delete_issue', { p_id: id, p_code: adminCode });
+    if (data && data.error) { showToast(data.error, true); return; }
+    issues = issues.filter(i => i.id !== id);
+    if (selected === id) {
+      selected = null;
+      document.getElementById('detail-pane').innerHTML = '<div class="placeholder" style="margin-top:60px"><div class="icon">👆</div><p>Select an issue to view details</p></div>';
+    }
+    updateStats();
+    renderList();
+    showToast('Issue removed');
+  }
+
+  async function deleteComment(commentId, issueId) {
+    if (!adminCode || !confirm('Remove this comment?')) return;
+    const { data } = await db.rpc('admin_delete_comment', { p_id: commentId, p_code: adminCode });
+    if (data && data.error) { showToast(data.error, true); return; }
+    document.getElementById('cmt-' + commentId)?.remove();
+    showToast('Comment removed');
+  }
+
+  // ── Helpers ────────────────────────────────────────────────────────────
+  function statusBadge(s) {
+    const m = {'Open':'badge-open','In progress':'badge-progress','Resolved':'badge-resolved'};
+    return `<span class="badge ${m[s]||'badge-low'}">${s}</span>`;
+  }
+  function priorityBadge(p) {
+    const m = {'Critical':'badge-critical','High':'badge-high','Medium':'badge-medium','Low':'badge-low'};
+    return `<span class="badge ${m[p]||'badge-low'}">${p||'Medium'}</span>`;
+  }
+  function fmtDate(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'});
+  }
+  function initials(name) { return (name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase(); }
+  function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function showToast(msg, isError) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    clearTimeout(t._t);
+    t._t = setTimeout(() => t.className = 'toast', 3000);
+  }
+</script>
+</body>
+</html>
