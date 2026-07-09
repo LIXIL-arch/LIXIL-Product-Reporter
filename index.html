@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LIXIL Product Issues</title>
+  <title>LIXIL Field Reporter</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -165,6 +165,24 @@
       .detail-pane.hide { display: none; }
     }
     .back-btn { display: none; align-items: center; gap: 4px; margin-bottom: 12px; }
+
+    /* Info panel */
+    .info-panel { background: var(--white); border-bottom: 1px solid var(--border); }
+    .info-toggle { width: 100%; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; background: none; border: none; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--lixil-dark); text-align: left; }
+    .info-toggle:hover { background: var(--lixil-light); }
+    .info-toggle-label { display: flex; align-items: center; gap: 6px; }
+    .info-body { display: none; padding: 0 20px 16px; }
+    .info-body.open { display: block; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .info-col-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid; }
+    .info-col-title.use { color: var(--green-text); border-color: var(--green-text); }
+    .info-col-title.not { color: var(--red-text); border-color: var(--red-text); }
+    .info-col-title.expect { color: var(--lixil-dark); border-color: var(--lixil); }
+    .info-col ul { padding-left: 14px; margin: 0; }
+    .info-col ul li { font-size: 12px; color: #374151; line-height: 1.6; margin-bottom: 4px; }
+    .info-col p { font-size: 12px; color: #374151; line-height: 1.6; margin: 0; }
+    .info-tip { margin-top: 10px; padding: 8px 12px; background: var(--lixil-light); border-left: 3px solid var(--lixil); border-radius: 0 6px 6px 0; font-size: 12px; color: var(--lixil-dark); line-height: 1.5; }
+    @media (max-width: 680px) { .info-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -188,11 +206,44 @@
   <div class="logo">
     <div class="logo-icon">L</div>
     <div>
-      <div class="logo-name">LIXIL product issues</div>
-      <div class="logo-sub">Report and track product issues</div>
+      <div class="logo-name">LIXIL Field Reporter</div>
+      <div class="logo-sub">Competitor · Product · Display intelligence</div>
     </div>
   </div>
   <button class="btn btn-primary" onclick="openModal()">+ Report issue</button>
+</div>
+
+<!-- Info panel -->
+<div class="info-panel">
+  <button class="info-toggle" onclick="toggleInfo()">
+    <span class="info-toggle-label">ℹ️ How to use LIXIL Field Reporter</span>
+    <span id="info-chevron">▾ Show</span>
+  </button>
+  <div class="info-body" id="info-body">
+    <div class="info-grid">
+      <div class="info-col">
+        <div class="info-col-title use">✓ Use this for</div>
+        <ul>
+          <li><strong>Competitor activity</strong> — pricing, products, and showroom displays. Include model numbers, price documentation, and photos.</li>
+          <li><strong>Product gaps or opportunities</strong></li>
+          <li><strong>Training & loyalty program insights</strong> — attach program documents</li>
+          <li><strong>Branded display issues</strong> — lighting, maintenance, or condition. Include photos.</li>
+        </ul>
+        <div class="info-tip">💡 Including full details upfront — photos, documents, model numbers, and pricing — eliminates follow-up questions and speeds resolution.</div>
+      </div>
+      <div class="info-col">
+        <div class="info-col-title not">✗ Not for</div>
+        <ul>
+          <li><strong>Customer Service issues</strong> — continue to contact the Customer Service team directly</li>
+          <li><strong>Quality issues</strong> — continue to follow the existing process with the Concierge team</li>
+        </ul>
+      </div>
+      <div class="info-col">
+        <div class="info-col-title expect">💬 What to expect</div>
+        <p>This tool is actively monitored by our cross-functional partners. If your entry needs clarification, you'll see questions added directly to the thread. If a quick fix or answer is available, a response will be posted there.</p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Stats -->
@@ -237,13 +288,22 @@
       <div><label class="form-label">Email *</label><input class="form-input" id="f-email" type="email" placeholder="jane@example.com" /></div>
     </div>
     <div class="form-row"><label class="form-label">Issue title *</label><input class="form-input" id="f-title" type="text" placeholder="Short description of the problem" /></div>
+    <div class="form-row"><label class="form-label">Report type *</label>
+      <select class="form-select" id="f-report-type">
+        <option value="">— Select a type —</option>
+        <option>Competitor Activity</option>
+        <option>Product Gap / Opportunity</option>
+        <option>Training & Loyalty Program</option>
+        <option>Display Issue</option>
+      </select>
+    </div>
     <div class="form-row"><label class="form-label">Product name</label><input class="form-input" id="f-product" type="text" placeholder="e.g. GROHE Essence Faucet, DXV Fitzgerald Sink…" /></div>
     <div class="form-row-2">
       <div><label class="form-label">Priority</label>
         <select class="form-select" id="f-priority"><option>Critical</option><option>High</option><option selected>Medium</option><option>Low</option></select>
       </div>
       <div><label class="form-label">Brand</label>
-        <select class="form-select" id="f-category"><option>American Standard</option><option>GROHE</option><option>DXV</option><option>INAX</option></select>
+        <select class="form-select" id="f-category"><option>American Standard</option><option>GROHE</option><option>DXV</option></select>
       </div>
     </div>
     <div class="form-row"><label class="form-label">Description *</label><textarea class="form-textarea" id="f-desc" placeholder="Steps to reproduce, expected vs. actual behavior, relevant details…"></textarea></div>
@@ -275,6 +335,14 @@
   let selected = null;
   let adminCode = null;
   const avColors = ['av-a','av-b','av-c','av-d'];
+
+  // ── Info panel ────────────────────────────────────────────────────────
+  function toggleInfo() {
+    const body = document.getElementById('info-body');
+    const chevron = document.getElementById('info-chevron');
+    const open = body.classList.toggle('open');
+    chevron.textContent = open ? '▴ Hide' : '▾ Show';
+  }
 
   // ── Access gate ────────────────────────────────────────────────────────
   const ACCESS_KEY = 'Problem-solver';
@@ -365,7 +433,7 @@
             ${['Open','In progress','Resolved'].map(s => `<option ${issue.status===s?'selected':''}>${s}</option>`).join('')}
           </select>
         </div>
-        <div class="issue-badges" style="margin:6px 0">${statusBadge(issue.status)} ${priorityBadge(issue.priority)} <span class="badge badge-low">${esc(issue.category||'Bug')}</span></div>
+        <div class="issue-badges" style="margin:6px 0">${statusBadge(issue.status)} ${priorityBadge(issue.priority)} <span class="badge badge-low">${esc(issue.category||'')}</span>${issue.report_type ? `<span class="badge" style="background:#f3f4f6;color:#374151">${esc(issue.report_type)}</span>` : ''}</div>
         <div class="detail-meta">Reported by <strong>${esc(issue.reporter_name)}</strong> (${esc(issue.reporter_email)}) · ${fmtDate(issue.created_at)}</div>
         ${issue.product_name ? `<div style="font-size:12px;color:var(--muted);margin-top:4px">Product: <strong style="color:var(--text)">${esc(issue.product_name)}</strong></div>` : ''}
         ${issue.description ? `<div class="detail-desc">${esc(issue.description)}</div>` : ''}
@@ -437,16 +505,18 @@
   function closeModal() { document.getElementById('modal').classList.remove('open'); }
 
   async function submitIssue() {
-    const title   = document.getElementById('f-title').value.trim();
-    const name    = document.getElementById('f-name').value.trim();
-    const email   = document.getElementById('f-email').value.trim();
-    const desc    = document.getElementById('f-desc').value.trim();
-    const prio    = document.getElementById('f-priority').value;
-    const cat     = document.getElementById('f-category').value;
-    const product = document.getElementById('f-product').value.trim();
-    const fileInput = document.getElementById('f-attachment');
+    const title      = document.getElementById('f-title').value.trim();
+    const name       = document.getElementById('f-name').value.trim();
+    const email      = document.getElementById('f-email').value.trim();
+    const desc       = document.getElementById('f-desc').value.trim();
+    const prio       = document.getElementById('f-priority').value;
+    const cat        = document.getElementById('f-category').value;
+    const product    = document.getElementById('f-product').value.trim();
+    const reportType = document.getElementById('f-report-type').value;
+    const fileInput  = document.getElementById('f-attachment');
 
     if (!title || !name || !email) { showToast('Name, email and title are required', true); return; }
+    if (!reportType) { showToast('Please select a report type', true); return; }
     if (!desc) { showToast('Description is required', true); return; }
 
     const btn = document.getElementById('submit-btn');
@@ -473,12 +543,14 @@
     const { error } = await db.from('issues').insert({
       title, description: desc, priority: prio, category: cat,
       reporter_name: name, reporter_email: email,
-      product_name: product, attachment_url: attachmentUrl
+      product_name: product, attachment_url: attachmentUrl,
+      report_type: reportType
     });
     btn.disabled = false; btn.textContent = 'Submit issue';
     if (error) { showToast('Failed to submit issue', true); return; }
     closeModal();
     ['f-title','f-name','f-email','f-desc','f-product'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-report-type').value = '';
     fileInput.value = '';
     showToast('Issue submitted ✓');
     loadIssues();
