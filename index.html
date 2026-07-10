@@ -344,21 +344,96 @@
     chevron.textContent = open ? '▴ Hide' : '▾ Show';
   }
 
-  // ── Access gate ────────────────────────────────────────────────────────
+  // ── Access gate ────────────────────────────────────────────────────────────────────────────
   const ACCESS_KEY = 'Problem-solver';
+
+  // Approved email domains (agency reps + LIXIL employees)
+  const ALLOWED_DOMAINS = [
+    '57aloha.com',
+    'ahreps.com',
+    'bigriversllc.com',
+    'cathell.com',
+    'cathellnaylor.com',
+    'contactsalescompany.com',
+    'elmcoassoc.com',
+    'elmcosilverstate.com',
+    'elmcostewart.com',
+    'harrywarren.com',
+    'harrywarrenga.com',
+    'lixil.com',
+    'midamericamktg.com',
+    'mmirep.com',
+    'newcenturysales.com',
+    'nextreps.com',
+    'norpacinc.com',
+    'pepcosales.com',
+    'ranviergroupky.com',
+    'repsourcellc.com',
+    'repsouth.com',
+    'rkrnet.com',
+    'soderhomrep.com',
+    'soderholmrep.com',
+    'urell.com',
+  ];
+
+  // Individual full-email approvals (yahoo/gmail exceptions)
+  const ALLOWED_FULL_EMAILS = [
+    'ejaentorres@yahoo.com',
+  ];
+
+  function isEmailAllowed(email) {
+    const e = (email || '').trim().toLowerCase();
+    if (ALLOWED_FULL_EMAILS.includes(e)) return true;
+    const domain = e.split('@')[1];
+    return !!(domain && ALLOWED_DOMAINS.includes(domain));
+  }
+
   (function checkAccess() {
+    // URL token bypass — keeps existing Highspot iframe embed working
     const params = new URLSearchParams(window.location.search);
-    if (params.get('key') !== ACCESS_KEY) {
-      document.body.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f9fafb">
-          <div style="text-align:center;color:#6b7280">
-            <div style="font-size:40px;margin-bottom:16px">🔒</div>
-            <div style="font-size:16px;font-weight:600;color:#111827;margin-bottom:8px">Access denied</div>
-            <div style="font-size:13px">You don't have the correct link to access this page.</div>
-          </div>
-        </div>`;
-      throw new Error('Access denied');
+    if (params.get('key') === ACCESS_KEY) return;
+
+    // Already verified this session?
+    const saved = sessionStorage.getItem('lixil_auth_email');
+    if (saved && isEmailAllowed(saved)) return;
+
+    // Show email gate
+    document.body.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:32px 28px;width:360px;max-width:95vw;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.07)">
+          <div style="width:44px;height:44px;background:#e95d08;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;font-weight:700;margin:0 auto 16px">L</div>
+          <h2 style="font-size:17px;font-weight:600;color:#111827;margin:0 0 6px">LIXIL Field Reporter</h2>
+          <p style="font-size:13px;color:#6b7280;margin:0 0 22px;line-height:1.5">Enter your work email to access</p>
+          <input id="gate-email" type="email" placeholder="you@yourcompany.com"
+            style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:8px;box-sizing:border-box;outline:none;transition:border-color 0.15s"
+            onkeydown="if(event.key==='Enter')verifyGate()"
+            onfocus="this.style.borderColor='#e95d08'"
+            onblur="this.style.borderColor='#e5e7eb'" />
+          <div id="gate-error" style="font-size:12px;color:#A32D2D;min-height:18px;margin-bottom:10px;line-height:1.4;text-align:left"></div>
+          <button onclick="verifyGate()"
+            style="width:100%;padding:10px;background:#e95d08;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;transition:background 0.15s"
+            onmouseover="this.style.background='#c44e06'"
+            onmouseout="this.style.background='#e95d08'">
+            Continue →
+          </button>
+        </div>
+      </div>`;
+
+    function verifyGate() {
+      const email = (document.getElementById('gate-email').value || '').trim();
+      const errEl = document.getElementById('gate-error');
+      if (!email) { errEl.textContent = 'Please enter your email.'; return; }
+      if (!email.includes('@')) { errEl.textContent = 'Please enter a valid email address.'; return; }
+      if (!isEmailAllowed(email)) {
+        errEl.textContent = "Your email isn't on the authorized list. Contact your LIXIL rep for access.";
+        return;
+      }
+      sessionStorage.setItem('lixil_auth_email', email.toLowerCase());
+      location.reload();
     }
+    window.verifyGate = verifyGate;
+
+    throw new Error('Access gate shown');
   })();
 
   // ── Init ───────────────────────────────────────────────────────────────
