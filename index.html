@@ -28,7 +28,7 @@
       --text: #111827;
       --muted: #6b7280;
     }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: var(--text); background: var(--surface); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; color: var(--text); background: var(--surface); min-height: 100vh; }
 
     /* Header */
     .header { background: var(--white); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
@@ -85,8 +85,8 @@
     .search-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 12px; pointer-events: none; }
 
     /* Layout */
-    .main { display: grid; grid-template-columns: 1fr 1fr; flex: 1; min-height: 0; }
-    .issue-list { border-right: 1px solid var(--border); overflow-y: auto; background: var(--white); height: 100%; }
+    .main { display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100vh - 200px); }
+    .issue-list { border-right: 1px solid var(--border); overflow-y: auto; background: var(--white); }
     .detail-pane { overflow-y: auto; background: var(--white); position: sticky; top: 145px; max-height: calc(100vh - 145px); }
 
     /* Issue rows */
