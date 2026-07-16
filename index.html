@@ -606,7 +606,7 @@
   }
 
   // ── New issue ──────────────────────────────────────────────────────────
-  function openModal() { document.getElementById('modal').classList.add('open'); document.getElementById('f-name').focus(); }
+  function openModal() { window.scrollTo(0, 0); document.getElementById('modal').classList.add('open'); document.getElementById('f-name').focus(); }
   function closeModal() { document.getElementById('modal').classList.remove('open'); }
 
   async function submitIssue() {
