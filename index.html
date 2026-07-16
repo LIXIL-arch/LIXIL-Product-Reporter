@@ -784,4 +784,20 @@
   function toggleOtherBrand() {
     const reportType = document.getElementById('f-report-type').value;
     const brandSel = document.getElementById('f-category');
-    const existing = brandSel.querySelector('option[value="Other"
+    const existing = brandSel.querySelector('option[value="Other"]');
+    if (reportType === 'Training & Loyalty Program') {
+      if (!existing) {
+        const opt = document.createElement('option');
+        opt.value = 'Other'; opt.textContent = 'Other';
+        brandSel.appendChild(opt);
+      }
+    } else {
+      if (existing) {
+        if (brandSel.value === 'Other') brandSel.value = 'American Standard';
+        existing.remove();
+      }
+    }
+  }
+</script>
+</body>
+</html>
