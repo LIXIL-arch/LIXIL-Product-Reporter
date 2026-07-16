@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    // When embedded in an iframe (e.g. Highspot), lock width to 900px so content doesn't squish
+    if (window !== window.top) {
+      document.querySelector('meta[name="viewport"]').content = 'width=900';
+    }
+  </script>
   <title>LIXIL Field Reporter</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -173,7 +179,7 @@
     .info-toggle-label { display: flex; align-items: center; gap: 6px; }
     .info-body { display: none; padding: 0 20px 16px; }
     .info-body.open { display: block; }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; } @media (max-width: 700px) { .info-grid { grid-template-columns: 1fr; } }
     .info-col-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid; }
     .info-col-title.use { color: var(--green-text); border-color: var(--green-text); }
     .info-col-title.not { color: var(--red-text); border-color: var(--red-text); }
