@@ -139,7 +139,7 @@
     .comment-fields input:focus { outline: none; border-color: var(--lixil); }
 
     /* Modal */
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center; }
+    .modal-overlay { display: none; position: absolute; left: 0; right: 0; background: rgba(0,0,0,0.4); z-index: 200; align-items: center; justify-content: center; }
     .modal-overlay.open { display: flex; }
     .modal { background: var(--white); border-radius: 12px; padding: 24px; width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
     .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
@@ -606,7 +606,13 @@
   }
 
   // ── New issue ──────────────────────────────────────────────────────────
-  function openModal() { window.scrollTo(0, 0); document.getElementById('modal').classList.add('open'); document.getElementById('f-name').focus(); }
+  function openModal() {
+    const overlay = document.getElementById('modal');
+    overlay.style.top = (window.scrollY || document.documentElement.scrollTop) + 'px';
+    overlay.style.height = window.innerHeight + 'px';
+    overlay.classList.add('open');
+    document.getElementById('f-name').focus();
+  }
   function closeModal() { document.getElementById('modal').classList.remove('open'); }
 
   async function submitIssue() {
