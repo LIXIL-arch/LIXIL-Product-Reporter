@@ -510,7 +510,7 @@
     }
     el.innerHTML = filtered.map(i => `
       <div class="issue-row ${i.id === selected ? 'active' : ''}" onclick="selectIssue('${i.id}')">
-        <button class="remove-issue-btn" onclick="event.stopPropagation();deleteIssue('${i.id}')" title="Remove">🗑</button>
+        <button class="remove-issue-btn" onclick="event.stopPropagation();deleteIssue('${i.id}',this)" title="Remove">🗑</button>
         <div class="issue-title">${esc(i.title)}</div>
         <div class="issue-badges">${statusBadge(i.status)} ${priorityBadge(i.priority)}</div>
         <div class="issue-meta">${esc(i.reporter_name)} · ${fmtDate(i.created_at)}</div>
@@ -582,7 +582,7 @@
         <div class="comment-body">
           <div class="comment-header">
             <div><span class="comment-author">${esc(c.author_name)}</span><span class="comment-date">${fmtDate(c.created_at)}</span></div>
-            <button class="btn btn-sm btn-danger remove-comment-btn" onclick="deleteComment('${c.id}','${issueId}')">Remove</button>
+            <button class="btn btn-sm btn-danger remove-comment-btn" onclick="deleteComment('${c.id}','${issueId}',this)">Remove</button>
           </div>
           <div class="comment-text">${esc(c.content)}</div>
         </div>
@@ -708,10 +708,30 @@
     showToast('Status updated to ' + status);
   }
 
-  async function deleteIssue(id) {
-    if (!adminCode || !confirm('Remove this issue? This cannot be undone.')) return;
-    const { data } = await db.rpc('admin_delete_issue', { p_id: id, p_code: adminCode });
-    if (data && data.error) { showToast(data.error, true); return; }
+  async function deleteIssue(id, btn) {
+    if (!adminCode) return;
+    // Two-click confirm — avoids confirm() which is blocked in iframes
+    if (!btn._confirming) {
+      btn._confirming = true;
+      const orig = btn.textContent;
+      btn.textContent = '✓ Sure?';
+      btn.style.cssText = 'background:var(--red-text);color:#fff;border-color:var(--red-text)';
+      btn._timer = setTimeout(() => {
+        btn._confirming = false;
+        btn.textContent = orig;
+        btn.style.cssText = '';
+      }, 2500);
+      return;
+    }
+    clearTimeout(btn._timer);
+    btn._confirming = false;
+    btn.textContent = '…';
+    btn.disabled = true;
+
+    const { data, error } = await db.rpc('admin_delete_issue', { p_id: id, p_code: adminCode });
+    if (error) { showToast('DB error: ' + error.message, true); btn.textContent = '🗑'; btn.disabled = false; return; }
+    if (data && data.error) { showToast(data.error, true); btn.textContent = '🗑'; btn.disabled = false; return; }
+
     issues = issues.filter(i => i.id !== id);
     if (selected === id) {
       selected = null;
@@ -719,14 +739,34 @@
     }
     updateStats();
     renderList();
-    showToast('Issue removed');
+    showToast('Topic removed');
   }
 
-  async function deleteComment(commentId, issueId) {
-    if (!adminCode || !confirm('Remove this comment?')) return;
-    const { data } = await db.rpc('admin_delete_comment', { p_id: commentId, p_code: adminCode });
-    if (data && data.error) { showToast(data.error, true); return; }
+  async function deleteComment(commentId, issueId, btn) {
+    if (!adminCode) return;
+    // Two-click confirm
+    if (!btn._confirming) {
+      btn._confirming = true;
+      btn.textContent = '✓ Sure?';
+      btn._timer = setTimeout(() => {
+        btn._confirming = false;
+        btn.textContent = 'Remove';
+      }, 2500);
+      return;
+    }
+    clearTimeout(btn._timer);
+    btn._confirming = false;
+    btn.textContent = '…';
+    btn.disabled = true;
+
+    const { data, error } = await db.rpc('admin_delete_comment', { p_id: commentId, p_code: adminCode });
+    if (error) { showToast('DB error: ' + error.message, true); btn.textContent = 'Remove'; btn.disabled = false; return; }
+    if (data && data.error) { showToast(data.error, true); btn.textContent = 'Remove'; btn.disabled = false; return; }
+
     document.getElementById('cmt-' + commentId)?.remove();
+    const remaining = document.querySelectorAll('#comments-list .comment').length;
+    const title = document.getElementById('comments-title');
+    if (title) title.textContent = `Comments (${remaining})`;
     showToast('Comment removed');
   }
 
